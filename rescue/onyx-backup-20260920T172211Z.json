@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "capturedAtUTC": "2026-09-20T17:22:11.362Z",
+    "sourceDeployment": "https://successful-iguana-419.convex.cloud",
+    "method": "Convex raw HTTP API POST /api/query (read-only)",
+    "phaseAWorkingPaths": {
+      "queries:getLatestProject": "error",
+      "queries:getAllProjects": "error",
+      "queries:getProjectRaw": "error",
+      "queries:getTranslationsRaw": "error",
+      "queries:getTranslationProgress": "error",
+      "queries:getLivePreviewText": "error",
+      "queries:getHistory": "error",
+      "resumeServerProject:getServerJobStatus": "error"
+    },
+    "liveSite": {
+      "url": "https://oyxtranslate.freebuff.app",
+      "httpStatus": 200,
+      "redirectedTo": null,
+      "ms": 152,
+      "title": "Onyx Translate",
+      "bodyChars": 858,
+      "verdict": "serving"
+    },
+    "dataCaptured": false,
+    "status": "BLOCKED_DEPLOYMENT_PAUSED",
+    "blocker": "[Request ID: 71e2603d0358383e] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+  },
+  "projects": [],
+  "imageTranslations": [],
+  "jobState": null
+}

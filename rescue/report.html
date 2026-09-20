@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OnyxTranslate Rescue Mission — Report</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f7f7f8; color: #17171c; line-height: 1.55; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 30px; letter-spacing: -0.02em; margin: 0 0 4px; }
+  h2 { font-size: 19px; letter-spacing: -0.01em; margin: 40px 0 12px; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; font-weight: 700; color: #5b5bd6; }
+  .sub { color: #5f5f6b; margin: 0; }
+  .card { background: #ffffff; border: 1px solid #e7e7ec; border-radius: 14px; padding: 20px 22px; margin: 14px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat { background: #ffffff; border: 1px solid #e7e7ec; border-radius: 14px; padding: 16px 18px; }
+  .stat .n { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .l { font-size: 12px; color: #5f5f6b; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5f5f6b; padding: 8px 10px; border-bottom: 1px solid #e7e7ec; }
+  td { padding: 10px; border-bottom: 1px solid #f0f0f4; vertical-align: top; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; }
+  .small { color: #5f5f6b; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 2px 10px; }
+  .badge.ok { background: #e7f5ec; color: #157347; }
+  .badge.err { background: #fdecec; color: #b3261e; }
+  pre { background: #17171c; color: #e8e8ee; border-radius: 10px; padding: 14px 16px; overflow: auto; font-size: 12.5px; }
+  .note { border-left: 3px solid #5b5bd6; padding: 10px 14px; background: #f4f4fb; border-radius: 0 10px 10px 0; font-size: 14px; }
+  footer { margin-top: 48px; font-size: 12px; color: #8a8a94; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">OnyxTranslate Rescue Mission</p>
+  <h1>Rescue Report</h1>
+  <p class="sub">Old deployment <span class="mono">https://successful-iguana-419.convex.cloud</span> · read-only forensics + backup + safe-resume attempt</p>
+
+  <h2>1 · Working function paths (Phase A)</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Function path</th><th>Status</th><th>Evidence (verbatim, first 220 chars)</th></tr></thead>
+      <tbody><tr><td class="mono">queries:getLatestProject</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: dc81edcf8649b5ff] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">queries:getAllProjects</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: eae8f2851edd96ac] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">queries:getProjectRaw</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: b02a7a274d5eece4] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">queries:getTranslationsRaw</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: 94dc517f05095c6e] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">queries:getTranslationProgress</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: 21c294c9e55cec68] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">queries:getLivePreviewText</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: 3cb521a48fc31dcf] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">queries:getHistory</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: 6e79c50b9417ab0b] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr>
+<tr><td class="mono">resumeServerProject:getServerJobStatus</td><td><span class="badge err">✘ error</span></td><td class="mono small">[Request ID: ec029ff47697171f] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>2 · Backup stats (Phase B)</h2>
+  <div class="grid">
+    <div class="stat"><div class="n">0</div><div class="l">projects</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">translations</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">chunks</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">image translations</div></div>
+  </div>
+  <div class="card"><span class="small">Backup file:</span> <span class="mono">rescue/onyx-backup-20260920T172211Z.json</span> <span class="small">· captured 2026-09-20T17:22:11.362Z</span></div>
+
+  <h2>3 · Frozen 672-page job — Urdu 14/92 (Phases B–C)</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Poll</th><th>UTC</th><th>getServerJobStatus (verbatim)</th></tr></thead>
+      <tbody><tr><td colspan="3">No polls recorded (resume not invoked or Phase C stopped).</td></tr></tbody>
+    </table>
+    <p class="small">completedChunks before: <b>n/a</b> · after: <b>n/a</b> · resume not invoked</p>
+  </div>
+
+  <h2>4 · Safe-resume outcome (Phase C)</h2>
+  <div class="card">
+    <div class="note">No designated safe-resume mutation accepted an invocation. Per mission rules the script STOPPED — no status-changing or destructive call was made. Probed candidates: <span class="mono">resumeServerProject:resumeServerJob, resumeServerProject:resumeJob, resumeServerProject:resume, resumeServerProject:recoverJob, resumeServerProject:resumeServer, resumeServerProject:resumeFrozenJob, resumeServerProject:kickWatchdog</span></div>
+  </div>
+
+  <h2>5 · Recommended next step</h2>
+  <div class="card"><p style="margin:0">No safe-resume entry point was found on the old deployment. Recommended next step: once the old OnyxTranslate source arrives via GitHub/support recovery, spin up a fresh Convex deployment in THIS project, import rescue/onyx-backup-*.json, and resume the Urdu job from chunk 15 under controlled code.</p></div>
+
+  <footer>Generated 2026-09-20T17:22:23.937Z · raw evidence: rescue/forensic-log.md · data: rescue/onyx-backup-20260920T172211Z.json · summary: rescue/backup-summary.md</footer>
+</div>
+</body>
+</html>

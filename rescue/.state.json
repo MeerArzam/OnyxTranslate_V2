@@ -1,0 +1,88 @@
+{
+  "phaseA": {
+    "completed": true,
+    "finished": "2026-09-20T17:19:48.516Z",
+    "workingPaths": {
+      "queries:getLatestProject": {
+        "status": "error",
+        "errorText": "[Request ID: dc81edcf8649b5ff] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "queries:getAllProjects": {
+        "status": "error",
+        "errorText": "[Request ID: eae8f2851edd96ac] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "queries:getProjectRaw": {
+        "status": "error",
+        "errorText": "[Request ID: b02a7a274d5eece4] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "queries:getTranslationsRaw": {
+        "status": "error",
+        "errorText": "[Request ID: 94dc517f05095c6e] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "queries:getTranslationProgress": {
+        "status": "error",
+        "errorText": "[Request ID: 21c294c9e55cec68] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "queries:getLivePreviewText": {
+        "status": "error",
+        "errorText": "[Request ID: 3cb521a48fc31dcf] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "queries:getHistory": {
+        "status": "error",
+        "errorText": "[Request ID: 6e79c50b9417ab0b] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      },
+      "resumeServerProject:getServerJobStatus": {
+        "status": "error",
+        "errorText": "[Request ID: ec029ff47697171f] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"
+      }
+    }
+  },
+  "updatedAt": "2026-09-20T17:22:11.956Z",
+  "phaseB": {
+    "completed": false,
+    "dataCaptured": false,
+    "blocker": "[Request ID: 71e2603d0358383e] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n",
+    "jsonPath": "/home/daytona/codebase/rescue/onyx-backup-20260920T172211Z.json",
+    "counts": {
+      "projects": 0,
+      "translations": 0,
+      "chunks": 0,
+      "imageTranslations": 0
+    },
+    "finished": "2026-09-20T17:22:11.593Z"
+  },
+  "phaseC": {
+    "started": "2026-09-20T17:22:11.956Z",
+    "resumeInvocation": {
+      "invoked": false
+    },
+    "polls": [],
+    "stopped": true,
+    "documentation": {
+      "note": "No designated safe-resume mutation responded OK. No status-changing or destructive call was made. All probed paths and verbatim errors are in forensic-log.md.",
+      "probedResumeCandidates": [
+        "resumeServerProject:resumeServerJob",
+        "resumeServerProject:resumeJob",
+        "resumeServerProject:resume",
+        "resumeServerProject:recoverJob",
+        "resumeServerProject:resumeServer",
+        "resumeServerProject:resumeFrozenJob",
+        "resumeServerProject:kickWatchdog"
+      ],
+      "knownQueries": [
+        "queries:getLatestProject",
+        "queries:getAllProjects",
+        "queries:getProjectRaw",
+        "queries:getTranslationsRaw",
+        "queries:getTranslationProgress",
+        "queries:getLivePreviewText",
+        "queries:getHistory",
+        "resumeServerProject:getServerJobStatus"
+      ],
+      "knownMutations": [
+        "resumeServerProject:getServerJobStatus (query, works)"
+      ]
+    },
+    "finished": "2026-09-20T17:22:11.956Z"
+  }
+}
