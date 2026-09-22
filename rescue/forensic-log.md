@@ -438,3 +438,16 @@ Cannot run functions while this deployment is paused. Resume the deployment in t
 - Live site probe: **HTTP 200** (static shell only; functions remain paused)
 - Conclusion: no change — copying remains blocked until the platform pauses are lifted
 
+
+## FRONTEND BUNDLE ANALYSIS — 2026-09-22T18:50:33.000Z
+- Source: https://oyxtranslate.freebuff.app (static, still serving)
+- Bundle: /assets/index-BdJdZrIT.js (589,560 bytes, minified)
+- Sourcemap comment: ABSENT · .map fetch: HTTP 403 (original source NOT recoverable)
+- Old deployment URL hardcoded in bundle: successful-iguana-419.convex.cloud
+- sk_ integration key in bundle: absent (no client-side secret leak)
+- API surface recovered from minified client (verbatim identifiers):
+  - queries: getLatestProject, getSessionProjects, getProject, getProjectRateSummary, getHistory
+  - mutations: createProject, deleteProject, deleteChunksForLang, history.deleteHistory
+  - resumeServerProject: getServerJobStatus, resumeServerProject (mutation wrapper — confirms Phase C entry point naming)
+- Value: documents the old app behavior; does NOT unlock data or source (deployment still paused)
+
