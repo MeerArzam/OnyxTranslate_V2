@@ -80,7 +80,29 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+/**
+ * Resolve the Convex deployment URL defensively. The platform normally injects
+ * VITE_CONVEX_URL; if it is ever missing or not an absolute URL (e.g. cleared
+ * in Keys/API keys, or pointed at a non-URL value), constructing
+ * ConvexReactClient would throw "Provided address was not an absolute URL" and
+ * blank the entire preview before React mounts. Instead we fall back to a
+ * reserved, unresolvable placeholder so the app shell still renders — Convex-
+ * backed features simply stay disabled until the real URL is restored.
+ */
+function resolveConvexUrl(): string {
+  const raw = import.meta.env.VITE_CONVEX_URL as string | undefined;
+  if (typeof raw === "string" && /^https?:\/\/\S+$/.test(raw.trim())) {
+    return raw.trim();
+  }
+  console.warn(
+    `[startup] VITE_CONVEX_URL is missing or not an absolute URL (got: ${String(raw)}). ` +
+      "Convex features are disabled — restore the deployment URL in Keys/API keys.",
+  );
+  // RFC 2606 reserved TLD — can never resolve or hit a real backend.
+  return "https://convex-missing.invalid";
+}
+
+const convex = new ConvexReactClient(resolveConvexUrl());
 
 
 
