@@ -425,3 +425,16 @@ ReferenceError: ensureLogHeader is not defined
 }
 ```
 
+
+## RE-PROBE — started 2026-09-22T17:36:36.000Z
+- Trigger: user switched VITE_CONVEX_URL to the old deployment; verifying its health before any migration work
+- Verbatim response (queries:getLatestProject):
+
+```text
+[Request ID: f29b0793d4760bd3] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+```
+
+- Live site probe: **HTTP 200** (static shell only; functions remain paused)
+- Conclusion: no change — copying remains blocked until the platform pauses are lifted
+
