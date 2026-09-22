@@ -1,0 +1,39 @@
+{
+  "generatedAt": "2026-09-20T17:22:23.945Z",
+  "sourceDeployment": "https://successful-iguana-419.convex.cloud",
+  "phases": {
+    "A": {
+      "completed": true,
+      "workingPaths": {
+        "queries:getLatestProject": "error",
+        "queries:getAllProjects": "error",
+        "queries:getProjectRaw": "error",
+        "queries:getTranslationsRaw": "error",
+        "queries:getTranslationProgress": "error",
+        "queries:getLivePreviewText": "error",
+        "queries:getHistory": "error",
+        "resumeServerProject:getServerJobStatus": "error"
+      }
+    },
+    "B": {
+      "completed": false,
+      "backupFile": "onyx-backup-20260920T172211Z.json",
+      "counts": {
+        "projects": 0,
+        "translations": 0,
+        "chunks": 0,
+        "imageTranslations": 0
+      },
+      "capturedAt": "2026-09-20T17:22:11.362Z"
+    },
+    "C": {
+      "completed": true,
+      "resumeInvoked": false,
+      "polls": 0,
+      "completedBefore": null,
+      "completedAfter": null,
+      "stopped": true
+    }
+  },
+  "nextStep": "No safe-resume entry point was found on the old deployment. Recommended next step: once the old OnyxTranslate source arrives via GitHub/support recovery, spin up a fresh Convex deployment in THIS project, import rescue/onyx-backup-*.json, and resume the Urdu job from chunk 15 under controlled code."
+}
