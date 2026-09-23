@@ -1,0 +1,119 @@
+{
+  "extractedAt": "2026-09-23T16:45:06.609Z",
+  "files": [
+    {
+      "path": "convex/mutations.ts",
+      "file": "_salvage/backend-src/mutations.ts",
+      "lines": 279,
+      "bytes": 8927
+    },
+    {
+      "path": "convex/queries.ts",
+      "file": "_salvage/backend-src/queries.ts",
+      "lines": 272,
+      "bytes": 8812
+    },
+    {
+      "path": "convex/history.ts",
+      "file": "_salvage/backend-src/history.ts",
+      "lines": 45,
+      "bytes": 1181
+    },
+    {
+      "path": "convex/upload.ts",
+      "file": "_salvage/backend-src/upload.ts",
+      "lines": 102,
+      "bytes": 3538
+    },
+    {
+      "path": "convex/identity.ts",
+      "file": "_salvage/backend-src/identity.ts",
+      "lines": 372,
+      "bytes": 12315
+    },
+    {
+      "path": "convex/jobMutations.ts",
+      "file": "_salvage/backend-src/jobMutations.ts",
+      "lines": 57,
+      "bytes": 1851
+    },
+    {
+      "path": "convex/importJob.ts",
+      "file": "_salvage/backend-src/importJob.ts",
+      "lines": 168,
+      "bytes": 6065
+    },
+    {
+      "path": "convex/exportProject.ts",
+      "file": "_salvage/backend-src/exportProject.ts",
+      "lines": 132,
+      "bytes": 4877
+    },
+    {
+      "path": "convex/artifactMutations.ts",
+      "file": "_salvage/backend-src/artifactMutations.ts",
+      "lines": 83,
+      "bytes": 2811
+    },
+    {
+      "path": "convex/http.ts",
+      "file": "_salvage/backend-src/http.ts",
+      "lines": 235,
+      "bytes": 8903
+    },
+    {
+      "path": "convex/crons.ts",
+      "file": "_salvage/backend-src/crons.ts",
+      "lines": 32,
+      "bytes": 846
+    },
+    {
+      "path": "convex/translateContent.ts",
+      "file": "_salvage/backend-src/translateContent.ts",
+      "lines": 1126,
+      "bytes": 52834
+    },
+    {
+      "path": "convex/translateQueue.ts",
+      "file": "_salvage/backend-src/translateQueue.ts",
+      "lines": 832,
+      "bytes": 34816
+    },
+    {
+      "path": "convex/translateImage.ts",
+      "file": "_salvage/backend-src/translateImage.ts",
+      "lines": 156,
+      "bytes": 4818
+    },
+    {
+      "path": "convex/parsePdf.ts",
+      "file": "_salvage/backend-src/parsePdf.ts",
+      "lines": 207,
+      "bytes": 6398
+    },
+    {
+      "path": "convex/generatePdf.ts",
+      "file": "_salvage/backend-src/generatePdf.ts",
+      "lines": 199,
+      "bytes": 8189
+    },
+    {
+      "path": "convex/zipAssembly.ts",
+      "file": "_salvage/backend-src/zipAssembly.ts",
+      "lines": 80,
+      "bytes": 2623
+    },
+    {
+      "path": "convex/pdfLayout.ts",
+      "file": "_salvage/backend-src/pdfLayout.ts",
+      "lines": 265,
+      "bytes": 8694
+    },
+    {
+      "path": "convex/renderPdfCore.ts",
+      "file": "_salvage/backend-src/renderPdfCore.ts",
+      "lines": 633,
+      "bytes": 24228
+    }
+  ]
+}

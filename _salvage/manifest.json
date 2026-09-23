@@ -1,0 +1,154 @@
+{
+  "generatedAt": "2026-09-23T16:41:55.114Z",
+  "base": "https://oyxtranslate.freebuff.app",
+  "expectedByPrompt": "/assets/index-D608_tX5.js",
+  "foundInLiveHtml": [
+    "/assets/index-BdJdZrIT.js",
+    "/assets/lucide-BSGcWM8b.js",
+    "/assets/react-vendor-Cjo8ojsB.js",
+    "/assets/index-yA44myuA.css"
+  ],
+  "files": [
+    {
+      "url": "https://oyxtranslate.freebuff.app",
+      "dest": "_salvage/index.html",
+      "status": 200,
+      "bytes": 860,
+      "sniff": "text/html",
+      "sha256_16": "d3cc17551d6cd56c"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/assets/index-BdJdZrIT.js",
+      "dest": "_salvage/assets/index-BdJdZrIT.js",
+      "status": 200,
+      "bytes": 604715,
+      "sniff": "binary",
+      "sha256_16": "b7d283129a0d1edf"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/assets/lucide-BSGcWM8b.js",
+      "dest": "_salvage/assets/lucide-BSGcWM8b.js",
+      "status": 200,
+      "bytes": 16233,
+      "sniff": "binary",
+      "sha256_16": "16629f0e5ca45905"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/assets/react-vendor-Cjo8ojsB.js",
+      "dest": "_salvage/assets/react-vendor-Cjo8ojsB.js",
+      "status": 200,
+      "bytes": 3655,
+      "sniff": "binary",
+      "sha256_16": "80d2c58239e0bea5"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/assets/index-yA44myuA.css",
+      "dest": "_salvage/assets/index-yA44myuA.css",
+      "status": 200,
+      "bytes": 113331,
+      "sniff": "text/other",
+      "sha256_16": "8ebd4292dcd34f85"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/assets/index-D608_tX5.js",
+      "dest": "_salvage/assets/index-D608_tX5.js",
+      "status": 200,
+      "bytes": 860,
+      "sniff": "text/html",
+      "sha256_16": "d3cc17551d6cd56c"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/overview-dashboard.html",
+      "dest": "_salvage/docs/overview-dashboard.html",
+      "status": 200,
+      "bytes": 20516,
+      "sniff": "text/html",
+      "sha256_16": "e37932801a5fa364"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/architecture.html",
+      "dest": "_salvage/docs/architecture.html",
+      "status": 200,
+      "bytes": 20818,
+      "sniff": "text/html",
+      "sha256_16": "41ef8c9b01f8f4ff"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/translation-pipeline.html",
+      "dest": "_salvage/docs/translation-pipeline.html",
+      "status": 200,
+      "bytes": 19476,
+      "sniff": "text/html",
+      "sha256_16": "205b17131191960a"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/frontend.html",
+      "dest": "_salvage/docs/frontend.html",
+      "status": 200,
+      "bytes": 23982,
+      "sniff": "text/html",
+      "sha256_16": "e733a564d2f5366e"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/convex-functions.html",
+      "dest": "_salvage/docs/convex-functions.html",
+      "status": 200,
+      "bytes": 67706,
+      "sniff": "text/html",
+      "sha256_16": "15cbc438975fb3a2"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/convex-functions-2.html",
+      "dest": "_salvage/docs/convex-functions-2.html",
+      "status": 200,
+      "bytes": 56628,
+      "sniff": "text/html",
+      "sha256_16": "70f9227081c10be8"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/convex-functions-3.html",
+      "dest": "_salvage/docs/convex-functions-3.html",
+      "status": 200,
+      "bytes": 44401,
+      "sniff": "text/html",
+      "sha256_16": "4c5fd9dae74583de"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/convex-functions-4.html",
+      "dest": "_salvage/docs/convex-functions-4.html",
+      "status": 200,
+      "bytes": 19821,
+      "sniff": "text/html",
+      "sha256_16": "b7e36e4e926b040c"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/convex-functions-5.html",
+      "dest": "_salvage/docs/convex-functions-5.html",
+      "status": 200,
+      "bytes": 37122,
+      "sniff": "text/html",
+      "sha256_16": "be996298add48951"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/history.html",
+      "dest": "_salvage/docs/history.html",
+      "status": 200,
+      "bytes": 27373,
+      "sniff": "text/html",
+      "sha256_16": "c0e1fdf895583f5e"
+    },
+    {
+      "url": "https://oyxtranslate.freebuff.app/docs/live-tests.html",
+      "dest": "_salvage/docs/live-tests.html",
+      "status": 200,
+      "bytes": 33484,
+      "sniff": "text/html",
+      "sha256_16": "31666b47c20813ff"
+    }
+  ],
+  "summary": {
+    "total": 17,
+    "ok": 17,
+    "failed": 0
+  }
+}

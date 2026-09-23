@@ -1,0 +1,411 @@
+Frontend — OnyxTranslate Docs
+=============================
+
+Frontend — OnyxTranslate Docs
+
+&larr; Docs index &middot; &larr; OnyxTranslate app
+
+Frontend
+
+React components, state, hooks, CSS &middot; generated 2026-09-19 15:27 UTC
+
+1. Entry & Routing (src/main.tsx)
+
+```
+import { StrictMode, useState, useCallback, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
+import Translator from "./pages/Translator.tsx";
+import DragonIntro from "./components/DragonIntro.tsx";
+import { lazy, Suspense } from "react";
+
+// Overview dashboard is lazy-loaded — never bloats the main bundle
+const Overview = lazy(() => import("./pages/Overview.tsx"));
+
+import "./index.css";
+import { resolveConvexUrl } from "./lib/convexUrl";
+
+// Deployment migration: resolveConvexUrl overrides a stale/paused deployment
+// URL baked into the build env (see src/lib/convexUrl.ts).
+const convex = new ConvexReactClient(resolveConvexUrl(import.meta.env.VITE_CONVEX_URL));
+
+/** Hash-based routing: #/overview → docs dashboard, everything else → Translator */
+function useHashRoute(): string {
+  const get = () => window.location.hash || "#/";
+  const [hash, setHash] = useState(get);
+  useEffect(() => {
+    const onChange = () => setHash(get());
+    window.addEventListener("hashchange", onChange);
+    return () => window.removeEventListener("hashchange", onChange);
+  }, []);
+  return hash;
+}
+
+function App() {
+  const hash = useHashRoute();
+  const isOverview = hash.startsWith("#/overview");
+
+  const [showIntro, setShowIntro] = useState(true);
+  const [showDebugBtn, setShowDebugBtn] = useState(false);
+
+  // ?debug=1 shows a floating "Play Intro" button
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("debug") === "1") {
+      setShowDebugBtn(true);
+    }
+  }, []);
+
+  const handleIntroComplete = useCallback(() => {
+    setShowIntro(false);
+  }, []);
+
+  const handleReplayIntro = useCallback(() => {
+    setShowIntro(true);
+  }, []);
+
+  return (
+    <>
+      {/* Intro overlay — plays on top of the app, does not block rendering */}
+      {showIntro && !isOverview && <DragonIntro onComplete={handleIntroComplete} />}
+
+      {/* Hash routing: #/overview → docs dashboard, #/ → translator */}
+      {isOverview ? (
+        <Suspense
+          fallback={
+            <div
+              style={{
+                minHeight: "100vh",
+                background: "#0a0a0f",
+                color: "#8B5CF6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: "ui-monospace, monospace",
+                fontSize: 13,
+              }}
+            >
+              Loading documentation…
+            </div>
+          }
+        >
+          <Overview />
+        </Suspense>
+      ) : (
+        <Translator />
+      )}
+
+      {/* Debug button: visible only with ?debug=1 */}
+      {showDebugBtn && !isOverview && (
+        <button
+          onClick={handleReplayIntro}
+          style={{
+            position: "fixed",
+            bottom: 12,
+            left: 12,
+            zIndex: 99999,
+            padding: "6px 12px",
+            fontSize: 11,
+            background: "rgba(0,0,0,0.8)",
+            color: "#fbbf24",
+            border: "1px solid rgba(251,191,36,0.3)",
+            borderRadius: 6,
+            cursor: "pointer",
+            opacity: 0.7,
+          }}
+          title="Replay the Dragon intro"
+        >
+          ▶ Play Intro
+        </button>
+      )}
+    </>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <ConvexProvider client={convex}>
+      <App />
+    </ConvexProvider>
+  </StrictMode>,
+);
+
+```
+
+2. src/pages/Translator.tsx
+
+Main page: upload/paste/image input, language picker, translation controls, progress,
+preview, QA panel, history, export/import. Line count: 2442.
+
+2.1 React state (44 variables — real declarations)
+
+State | Type | Setter | Initial |
+projectId | Id<"projects"> | null | setProjectId | null |
+pdfFileName | string | null | setPdfFileName | null |
+pdfPageCount | number | null | setPdfPageCount | null |
+pdfWarnings | string[] | setPdfWarnings | [] |
+pageData | PDFPageData[] | setPageData | [] |
+originalPageTexts | string[] | setOriginalPageTexts | [] |
+sourceText | inferred | setSourceText | "" |
+originalArrayBuffer | ArrayBuffer | null | setOriginalArrayBuffer | null |
+isUploading | inferred | setIsUploading | false |
+uploadError | string | null | setUploadError | null |
+isDragOver | inferred | setIsDragOver | false |
+parsePhase | "idle" | "loading" | "parsing" | "done" | setParsePhase | "idle" |
+inputTab | "documents" | "text" | "images" | setInputTab | "documents" |
+view | "input" | "job" | setView | "input" |
+isTranslating | inferred | setIsTranslating | false |
+translationError | string | null | setTranslationError | null |
+copiedPreview | inferred | setCopiedPreview | false |
+currentPreviewLangCode | string | null | setCurrentPreviewLangCode | null |
+pdfProgress | PDFGenerationProgress | null | setPdfProgress | null |
+currentPdfBlob | Blob | null | setCurrentPdfBlob | null |
+currentQaReport | QAReport | null | setCurrentQaReport | null |
+translationMode | TranslationMode | null | setTranslationMode | null |
+translationModel | string | null | setTranslationModel | null |
+showAllQaPhases | inferred | setShowAllQaPhases | false |
+baselineSummary | BaselineSummary | null | setBaselineSummary | null |
+baselineRunning | inferred | setBaselineRunning | false |
+baselineOpen | inferred | setBaselineOpen | false |
+selectedLangCodes | string[] | setSelectedLangCodes | [] |
+marketContext |
+"standard" | "high-censorship" | "romance-focused" | "conservative"
+| setMarketContext | "standard" |
+isDownloadingZip | inferred | setIsDownloadingZip | false |
+uploadPercent | number | null | setUploadPercent | null |
+activeUploadJobId | Id<"uploadJobs"> | null | setActiveUploadJobId | null |
+serverHandoffAck | inferred | setServerHandoffAck | false |
+activeUploadError | string | null | setActiveUploadError | null |
+pendingStaging | UploadStagingRecord[] | setPendingStaging | [] |
+showYourJobs | inferred | setShowYourJobs | false |
+imageMode | "none" | "upload" | "camera" | setImageMode | "none" |
+imagePreview | string | null | setImagePreview | null |
+currentImageBase64 | inferred | setCurrentImageBase64 | "" |
+isTranslatingImage | inferred | setIsTranslatingImage | false |
+imageSelectedLangs | string[] | setImageSelectedLangs | [] |
+showHistory | inferred | setShowHistory | false |
+isExporting | inferred | setIsExporting | false |
+isImporting | inferred | setIsImporting | false |
+
+2.2 Convex / React hooks (22 — real bindings)
+
+Variable | Hook | Target |
+parsePdfAction | useAction | api.parsePdf.parseUploadedPdf |
+translateLanguageAction | useAction | api.translateContent.translateLanguage |
+cancelTranslationAction | useAction | api.translateQueue.cancelTranslation |
+translateImageAction | useAction | api.translateImage.translateImage |
+startAdaptiveAction | useAction | api.adaptiveJobs.startAdaptiveTranslation |
+createProjectMutation | useMutation | api.mutations.createProject |
+deleteProjectMutation | useMutation | api.mutations.deleteProject |
+deleteChunksForLangMutation | useMutation | api.mutations.deleteChunksForLang |
+latestProject | useQuery | api.queries.getLatestProject, { sessionId } |
+sessionProjects | useQuery | api.queries.getSessionProjects, { sessionId } |
+convexProject | useQuery | api.queries.getProject, projectId ? { projectId, sessionId } : "skip" |
+adaptiveRateRow | useQuery | api.queries.getProjectRateSummary, projectId ? { projectId } : "skip" |
+serverJobStatus | useQuery | api.resumeServerProject.getServerJobStatus, projectId ? { projectId } : "skip" |
+resumeServerProjectAction | useAction | api.resumeServerProject.resumeServerProject |
+convexTranslations | useQuery | api.queries.getProjectTranslations, projectId ? { projectId, sessionId } : "skip" |
+resumableJobs | useQuery | api.identity.getResumableJobs, { clientId, limit: 12 } |
+activeUploadJob | useQuery | api.identity.getUploadJob, activeUploadJobId ? { uploadJobId: activeUploadJobId, clientId } : "skip" |
+saveHistoryMutation | useMutation | api.history.saveToHistory |
+buildExportAction | useAction | api.exportProject.buildExportArtifact |
+buildZipNowAction | useAction | api.exportProject.buildZipNow |
+issueExportToken | useMutation | api.artifactMutations.issueExportToken |
+adoptJobMutation | useMutation | api.identity.adoptJob |
+
+2.3 Derived values (useMemo)
+
+flowPhase, languageStatuses, activeLangIndex, overallProgress
+
+2.4 Key functions (real code)
+
+startTranslation — kicks off the server-side chain
+
+```
+// startTranslation not found
+```
+
+handlePause — cancels the queue server-side
+
+```
+// handlePause not found
+```
+
+handleRetranslate — deletes chunks for one language and restarts it
+
+```
+// handleRetranslate not found
+```
+
+handleExportProgress — JSON export
+
+```
+// handleExportProgress not found
+```
+
+handleImportProgress — JSON import via Convex action
+
+```
+// handleImportProgress not found
+```
+
+handleFileSelect (first 50 lines) — PDF upload with batched parse progress
+
+```
+// handleFileSelect not found
+```
+
+flowPhase — derived UI phase (useMemo)
+
+```
+// flowPhase not found
+```
+
+3. Components
+
+3.1 src/components/FixPassReport.tsx (A–G fix-pass report panel)
+
+Deep static report rendered at /#/overview (Docs → ⚡ Live Tests → 📋 Fix Report):
+phase A–G table, 12-item verification checklist, extraction self-test output, ar/ja/de fidelity
+assertions, C3 bidi/shaping deep dive, D3 score table, deviations. All data from the real runs.
+
+3.2 src/components/DragonIntro.tsx (intro overlay)
+
+```
+import { useState, useEffect } from "react";
+
+/**
+ * DragonIntro — Uses the actual Kali Linux dragon logo.svg
+ * with neon glow effects on a black background.
+ *
+ * Sequence (~3.5s):
+ *   1. Dark Reveal: Radial purple glow + gold ember particles
+ *   2. Logo Appears: logo.svg fades in with purple/neon glow filter
+ *   3. Flash Sweep: Left-to-right gold/white gradient bar
+ *   4. Title: "ONYX" + "TRANSLATE" fade in below
+ *   5. Fade Out: Everything dissolves, app appears
+ */
+export default function DragonIntro({
+  onComplete,
+}: {
+  onComplete: () => void;
+}) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisible(false);
+      onComplete();
+    }, 3700);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  // Safety: force-complete after 4.5s
+  useEffect(() => {
+    const safety = setTimeout(() => {
+      setVisible(false);
+      onComplete();
+    }, 4500);
+    return () => clearTimeout(safety);
+  }, [onComplete]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="kali-overlay" aria-hidden="true">
+      {/* Background radial glow */}
+      <div className="kali-glow" />
+
+      {/* Ember particles */}
+      <div className="kali-ember" style={{ left: "15%", animationDelay: "0.0s", animationDuration: "2.8s" }} />
+      <div className="kali-ember" style={{ left: "30%", animationDelay: "0.4s", animationDuration: "3.1s" }} />
+      <div className="kali-ember" style={{ left: "45%", animationDelay: "0.8s", animationDuration: "2.6s" }} />
+      <div className="kali-ember" style={{ left: "55%", animationDelay: "0.2s", animationDuration: "3.0s" }} />
+      <div className="kali-ember" style={{ left: "70%", animationDelay: "0.6s", animationDuration: "2.9s" }} />
+      <div className="kali-ember" style={{ left: "82%", animationDelay: "1.0s", animationDuration: "3.2s" }} />
+      <div className="kali-ember" style={{ left: "25%", animationDelay: "1.2s", animationDuration: "2.7s" }} />
+      <div className="kali-ember" style={{ left: "60%", animationDelay: "0.3s", animationDuration: "3.0s" }} />
+
+      {/* The actual Kali Linux dragon logo with neon glow */}
+      <div className="kali-logo-wrap">
+        <img src="/logo.svg" alt="Onyx Translate Dragon" />
+      </div>
+
+      {/* Flash sweep bar */}
+      <div className="kali-flash" />
+
+      {/* Title */}
+      <div className="kali-title-block">
+        <div className="kali-title">ONYX</div>
+        <div className="kali-subtitle">TRANSLATE</div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+3.3 src/components/RoyalProgressPanel.tsx (progress dashboard)
+
+Props (from the real interface):
+
+```
+// RoyalProgressPanelProps not found
+```
+
+```
+// LanguageStatus not found
+```
+
+3.4 src/components/LanguageAccordion.tsx (per-language preview accordion)
+
+Uses useQuery(api.queries.getLivePreviewText, { projectId, langCode }) for the
+expanded language, with RTL support for ar/ur/ks. Props:
+
+```
+// LanguageAccordionProps not found
+```
+
+3.5 src/components/HistoryPanel.tsx (slide-in history)
+
+Reactive query api.queries.getHistory filtered by sessionId; delete via
+api.history.deleteHistory.
+
+4. Theme CSS Classes (src/index.css — real properties)
+
+Class | Key properties (from the real file) |
+
+.safe-pad | padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px) |
+.app-bg-pattern | background: var(--bg); background-image:
+radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 70%),
+radial-gradient(circle at 20% 80%, rgba(0, 229, 255, 0.03) 0%, transparent 50%),
+radial-gradient(circle at 80% 20%, rgba(251, 191, 36, 0.02) 0%, transparent |
+.neon-glow | box-shadow:
+0 0 8px rgba(0, 229, 255, 0.25),
+0 0 20px rgba(139, 92, 246, 0.15) |
+.logo-gradient | background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text |
+.royal-card | background: linear-gradient(145deg, rgba(12, 12, 24, 0.95), rgba(8, 8, 16, 0.98)); border: 1px solid var(--border); box-shadow:
+0 0 1px rgba(139, 92, 246, 0.1),
+0 4px 16px rgba(0, 0, 0, 0.4) |
+.btn-royal-hover | background: linear-gradient(135deg, var(--neon-purple-deep), #6d28d9); color: #fff; border: 1px solid rgba(139, 92, 246, 0.3); transition: all 0.2s ease |
+.royal-shimmer | background: linear-gradient(90deg,
+rgba(139, 92, 246, 0.1) 0%,
+rgba(139, 92, 246, 0.4) 50%,
+rgba(139, 92, 246, 0.1) 100%); background-size: 200% 100%; animation: royal-shimmer 2s linear infinite |
+.animate-royal-glow | animation: royal-glow-pulse 2s ease-in-out infinite |
+.animate-royal-pulse | animation: royal-pulse 1.5s ease-in-out infinite |
+.kali-overlay | position: fixed; inset: 0; z-index: 9999; background: #000; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow: hidden; animation: kaliFadeOut 0.6s ease 3s forwards |
+.kali-glow | position: absolute; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%); opacity: 0; animation: kaliGlowPulse 1.2s ease-in-out 0.2s forwards |
+.kali-ember | position: absolute; bottom: 10%; width: 3px; height: 3px; background: #D4A017; border-radius: 50%; opacity: 0; animation: kaliEmberRise 3s ease-out infinite; box-shadow: 0 0 4px rgba(212, 160, 23, 0.6) |
+.kali-logo-wrap | position: absolute; width: clamp(160px, 35vw, 280px); opacity: 0; animation: kaliLogoFadeIn 1s ease-out 0.5s forwards; filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.4))
+drop-shadow(0 0 40px rgba(0, 229, 255, 0.15)) |
+.kali-flash | position: absolute; top: 0; left: 0; width: 80px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,215,0,0.5), rgba(255,255,255,0.7), rgba(255,215,0,0.5), transparent); opacity: 0; animation: kaliFlashSweep 1s ease-in-out 1.5s forwards; pointer-events: none |
+.kali-title-block | position: absolute; bottom: 20%; display: flex; flex-direction: column; align-items: center; gap: 6px; opacity: 0; animation: kaliTitleReveal 0.8s ease-out 2s forwards |
+.kali-title | font-family: Georgia, 'Times New Roman', serif; font-size: clamp(42px, 10vw, 68px); font-weight: 800; letter-spacing: 0.3em; color: #FFD700; text-shadow: 0 0 20px rgba(255,215,0,0.5), 0 0 40px rgba(255,215,0,0.2) |
+.kali-subtitle | font-family: Georgia, 'Times New Roman', serif; font-size: clamp(12px, 3vw, 20px); letter-spacing: 0.4em; color: #8B5CF6; font-weight: 600; text-shadow: 0 0 10px rgba(139,92,246,0.4); opacity: 0; animation: kaliSubReveal 0.5s ease-out 2.4s forwards |
+
+Plus Tailwind utility classes and CSS variables
+(--bg: #06060e, --neon-cyan: #00e5ff,
+--neon-purple: #a78bfa, --neon-gold: #fbbf24).
+
+OnyxTranslate static documentation mirror — plain HTML, no JavaScript. Interactive version: /#/overview
