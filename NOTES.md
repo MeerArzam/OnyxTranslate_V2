@@ -7,6 +7,14 @@
 - Environment files, salvage material, dependencies, build output, and `src/convex/_generated/` are excluded by `.gitignore`.
 - The hardcoded email-provider key was removed. Email delivery reads `EMAIL_API_KEY` from backend environment configuration.
 
+## Phase 1 — repository and Convex setup
+
+- React, Vite, TypeScript, Tailwind, Convex, and the existing Freebuff app shell are configured.
+- The approved backend is the Freebuff-managed deployment at `https://charming-stork-436.convex.cloud`.
+- The old paused deployment is not used by the application backend.
+- GitHub sync is enabled through Freebuff/Vly. Direct `git` and `github` commands are intentionally blocked by this environment, so commit/push verification is delegated to the platform sync.
+- The old public `/docs` report route was removed. Architecture documentation is kept in `NOTES.md`; salvage material remains gitignored under `_salvage/`.
+
 ## Phase 2 — backend spine
 
 The backend uses the recovered 19-file source spine plus the durable adaptive modules reconstructed from the old technical documentation. Translation is not implemented as one long action:
@@ -28,7 +36,7 @@ The complete status machines are in `src/convex/STATE-TRANSITIONS.md`.
 
 ## Hosting status
 
-`bun convex deploy` completed successfully, but the CLI selected the current Freebuff-managed development deployment at `https://charming-stork-436.convex.cloud` rather than a user-owned production deployment. This is the documented fallback, not the requested permanent hosting target: **the same shared-hosting compute-pause risk remains**. The environment blocks direct inspection of `CONVEX_DEPLOY_KEY`; before production use, the user must place that key in the project's backend Keys/API keys configuration and redeploy to the user-owned deployment. The paused `successful-iguana-419` deployment was never modified.
+The owner explicitly approved the Freebuff-managed Convex deployment to avoid paid hosting. `bun convex deploy` completed successfully at `https://charming-stork-436.convex.cloud`. This remains subject to Freebuff shared-hosting compute limits, but it is the active accepted target. The paused `successful-iguana-419` deployment was never modified.
 
 ## Recovered source fidelity
 
