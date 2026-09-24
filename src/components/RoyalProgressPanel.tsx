@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { getLocalizationConfig } from "@/data/localization";
 
-type Translation = { _id: string; langCode: string; status: string; completedChunks: number; totalChunks: number; mergedText?: string; pdfUrl?: string };
+type Translation = { _id?: string; langCode: string; status: string; completedChunks: number; totalChunks: number; mergedText?: string; pdfUrl?: string };
 type Project = { status: string; pageCount: number; wordCount: number; zipUrl?: string };
 
 export function RoyalProgressPanel({ project, translations, selected, onPause, onResume, onDownloadZip, onDownloadPdf, onRestart }: {
