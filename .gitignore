@@ -1,4 +1,14 @@
-.env.local
-node_modules
-dist
-src/convex/_generated
+# Environment / secrets — never commit (see STEP 0 security pass).
+# .env.example is the ONLY env file allowed in the repo.
+.env*
+!.env.example
+
+# Salvage material — reference-only, never part of the app.
+_salvage/
+
+# Dependencies / build output
+node_modules/
+dist/
+
+# Convex generated code
+src/convex/_generated/

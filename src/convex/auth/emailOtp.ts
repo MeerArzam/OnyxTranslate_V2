@@ -26,7 +26,9 @@ export const emailOtp = Email({
         },
         {
           headers: {
-            "x-api-key": "fb_email_2crN1hqIArZP2bEfvjp5Qik4",
+            // SECURITY: key lives in backend env only (EMAIL_API_KEY).
+            // A hardcoded key previously shipped here and must be treated as compromised.
+            "x-api-key": process.env.EMAIL_API_KEY ?? "",
           },
         },
       );
