@@ -121,7 +121,7 @@ export const buildExportArtifact = action({
  */
 export const buildZipNow = action({
   args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     await ctx.runAction(api.zipAssembly.buildZip, { projectId: args.projectId });
     const project = await ctx.runQuery(api.queries.getProjectRaw, {
       projectId: args.projectId,

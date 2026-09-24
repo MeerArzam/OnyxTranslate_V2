@@ -13,14 +13,14 @@
 // a durable row.
 
 import { v } from "convex/values";
-import { internalMutation, internalAction } from "./_generated/server";
+import { internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { TRANSLATION_CONFIG } from "./translationConfig";
 
 /** Cron entry — iterates ALL projects, isolating failures per project. */
 export const watchdogTick = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<any> => {
     const projects = await ctx.runQuery(internal.adaptiveWatchdog.allProjectsRaw, {});
     let recovered = 0;
     let failed = 0;
@@ -43,11 +43,10 @@ export const watchdogTick = internalAction({
   },
 });
 
-export const allProjectsRaw = internalMutation({
+export const allProjectsRaw = internalQuery({
   args: {},
   handler: async (ctx) => {
-    // Reads run inside a mutation here only as a defensive collect; the
-    // watchdog needs the full project list each tick.
+    // The watchdog needs the full project list each tick.
     const rows = [];
     for await (const p of ctx.db.query("projects")) rows.push(p);
     return rows.map((p) => ({ _id: p._id, status: p.status, translationMode: p.translationMode }));
@@ -57,7 +56,7 @@ export const allProjectsRaw = internalMutation({
 /** Per-project recovery — the watchdog's core logic for ONE project. */
 export const recoverProject = internalAction({
   args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const project = await ctx.runQuery(api.queries.getProjectRaw, { projectId: args.projectId });
     if (!project) return { recovered: false as const };
 
@@ -117,7 +116,7 @@ export const recoverProject = internalAction({
         const translationRow = await ctx.runQuery(api.queries.getTranslationsRaw, {
           projectId: args.projectId,
         });
-        const target = translationRow.find((t) => t.langCode === stalled[0]);
+        const target = translationRow.find((t: { langCode: string }) => t.langCode === stalled[0]);
         await ctx.scheduler.runAfter(0, api.translateContent.translateLanguage, {
           projectId: args.projectId,
           langCode: stalled[0],

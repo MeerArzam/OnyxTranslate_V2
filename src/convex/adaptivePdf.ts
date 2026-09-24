@@ -17,9 +17,10 @@
 // zero pages lost).
 
 import { v } from "convex/values";
-import { action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import type { SourcePageData } from "./renderPdfCore";
 import { TRANSLATION_CONFIG } from "./translationConfig";
 
 // ──────────────────────────────────────────────────────────
@@ -197,12 +198,12 @@ export function computeBatchParagraphSlice(
 
 export const processAllBatches = action({
   args: { projectId: v.id("projects"), langCode: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const project = await ctx.runQuery(api.queries.getProjectRaw, { projectId: args.projectId });
     if (!project) throw new Error("Project not found");
     const translation = (await ctx.runQuery(api.queries.getTranslationsRaw, {
       projectId: args.projectId,
-    })).find((t) => t.langCode === args.langCode);
+    })).find((t: { langCode: string }) => t.langCode === args.langCode);
     if (!translation || !translation.mergedText) {
       return { rendered: 0, failed: 0, done: 0, pending: 0, skipped: true as const };
     }
@@ -213,12 +214,7 @@ export const processAllBatches = action({
       const blob = await ctx.storage.get(project.pageDataStorageId);
       if (blob) pageDataRaw = JSON.parse(await blob.text());
     }
-    const pageData = (pageDataRaw || []) as Array<{
-      num: number;
-      text?: string;
-      textItems?: Array<{ str: string }>;
-      blocks?: unknown;
-    }>;
+    const pageData = (pageDataRaw || []) as SourcePageData[];
     const srcBlob = project.pdfStorageId ? await ctx.storage.get(project.pdfStorageId) : null;
     if (!srcBlob) return { rendered: 0, failed: 0, done: 0, pending: 0, skipped: true as const };
     const srcBytes = new Uint8Array(await srcBlob.arrayBuffer());
@@ -311,6 +307,11 @@ export const processAllBatches = action({
         projectId: args.projectId,
         langCode: args.langCode,
       });
+      const merged = await ctx.runAction(internal.adaptivePdf.assembleLanguagePdf, {
+        projectId: args.projectId,
+        langCode: args.langCode,
+        storageIds: assembled.storageIds,
+      });
       await ctx.runMutation(api.mutations.updateTranslation, {
         translationId: translation._id,
         status: "complete",
@@ -320,7 +321,7 @@ export const processAllBatches = action({
             ? `batched: ${remaining.done} done, ${remaining.failed} batch(es) failed`
             : undefined,
         completedAt: Date.now(),
-        ...(assembled.url ? { pdfUrl: assembled.url } : {}),
+        ...(merged.url ? { pdfUrl: merged.url } : {}),
       });
     }
     const status = await ctx.runQuery(internal.adaptivePdf.batchStatus, {
@@ -359,12 +360,24 @@ export const assembleLanguagePdfMutation = internalMutation({
     const done = batches
       .filter((b) => b.status === "done" && b.storageId)
       .sort((a, b) => a.pageStart - b.pageStart);
-    if (done.length === 0) return { url: undefined };
+    return { storageIds: done.flatMap((b) => (b.storageId ? [b.storageId] : [])) };
+  },
+});
+
+/** Storage I/O is action-only in Convex; keep DB planning in a mutation. */
+export const assembleLanguagePdf = internalAction({
+  args: {
+    projectId: v.id("projects"),
+    langCode: v.string(),
+    storageIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (args.storageIds.length === 0) return { url: undefined as string | undefined };
     const pdfLibMod = (await import("pdf-lib")) as unknown as Record<string, unknown>;
     const pdfLib = (pdfLibMod.PDFDocument ? pdfLibMod : (pdfLibMod.default as Record<string, unknown>)) as typeof import("pdf-lib");
     const out = await pdfLib.PDFDocument.create();
-    for (const b of done) {
-      const blob = await ctx.storage.get(b.storageId!);
+    for (const storageId of args.storageIds) {
+      const blob = await ctx.storage.get(storageId);
       if (!blob) continue;
       const doc = await pdfLib.PDFDocument.load(new Uint8Array(await blob.arrayBuffer()), {
         ignoreEncryption: true,

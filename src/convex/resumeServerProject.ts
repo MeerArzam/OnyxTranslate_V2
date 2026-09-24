@@ -20,7 +20,7 @@ import { TRANSLATION_CONFIG, pacificDateKey } from "./translationConfig";
 
 export const getServerJobStatus = action({
   args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const project = await ctx.runQuery(api.queries.getProjectRaw, { projectId: args.projectId });
     if (!project) return { found: false as const };
 
@@ -101,7 +101,7 @@ function perLangDoneCalc(jobs: Array<{ langCode: string; status: string }>): Arr
 
 export const resumeServerProject = action({
   args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const project = await ctx.runQuery(api.queries.getProjectRaw, { projectId: args.projectId });
     if (!project) return { ok: false as const, reason: "project_not_found" };
 

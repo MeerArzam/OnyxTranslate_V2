@@ -422,7 +422,9 @@ export const flushJobResults = internalMutation({
         // Contract-mode assembly = PURE concatenation (code NEVER rewrites prose).
         const mergedText = assembleContractTranslations(chunks.map((c) => c.translatedText));
         await ctx.db.patch(translation._id, {
-          status: all.some((j) => j.needsReview) ? "in_progress" : "complete",
+          // needs_review is terminal for scheduling: it must not leave the
+          // language or ZIP gate permanently in_progress.
+          status: all.some((j) => j.needsReview) ? "needs_review" : "complete",
           completedChunks: doneCount,
           mergedText,
           completedAt: doneCount >= total ? Date.now() : undefined,
@@ -695,7 +697,7 @@ export const processClaimedJob = action({
     claimToken: v.string(),
     marketContext: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const job = await ctx.runQuery(internal.adaptiveJobs.getJobRaw, { jobId: args.jobId });
     if (!job) return { ok: false as const, reason: "job_not_found" };
     if (job.claimToken !== args.claimToken) return { ok: false as const, reason: "stale_claim" };

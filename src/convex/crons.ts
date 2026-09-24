@@ -1,5 +1,5 @@
 import { cronJobs } from "convex/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 /**
  * convex/crons.ts — PHASE 2 housekeeping.
@@ -23,8 +23,8 @@ crons.hourly(
 // and re-kicks a missing dispatcher lease — the chain never dies silently.
 crons.interval(
   "adaptive watchdog",
-  { minutes: 5 },
-  api.adaptiveWatchdog.watchdogTick,
+  { minutes: 3 },
+  internal.adaptiveWatchdog.watchdogTick,
   {},
 );
 

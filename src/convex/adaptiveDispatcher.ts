@@ -23,13 +23,13 @@ export const dispatcherTick = action({
     remainingLangs: v.optional(v.array(v.string())),
     marketContext: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const startedAt = Date.now();
     try {
       await ctx.runMutation(internal.adaptiveDispatcher.heartbeatDispatcher, {
         projectId: args.projectId,
       });
-      return await ctx.runAction(internal.adaptiveDispatcher.dispatcherTickInner, {
+      return await ctx.runAction(api.adaptiveDispatcher.dispatcherTickInner, {
         projectId: args.projectId,
         langCode: args.langCode,
         remainingLangs: args.remainingLangs,
@@ -66,7 +66,7 @@ export const dispatcherTickInner = action({
     marketContext: v.optional(v.string()),
     startedAt: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     // Governor pause → reschedule for resume time, never silently dead.
     const project = await ctx.runQuery(api.queries.getProjectRaw, { projectId: args.projectId });
     if (!project) return { ok: false as const, reason: "project_not_found" };
@@ -163,7 +163,7 @@ export const dispatcherTickInner = action({
     const elapsed = Date.now() - args.startedAt;
     if (elapsed < TRANSLATION_CONFIG.actionSafetyDeadlineMs - DEADLINE_BUFFER_MS) {
       await ctx.scheduler.runAfter(
-        Math.floor(TRANSLATION_CONFIG.dispatcherIntervalMs / 1000) || 15,
+        TRANSLATION_CONFIG.dispatcherIntervalMs,
         api.adaptiveDispatcher.dispatcherTick,
         {
           projectId: args.projectId,

@@ -65,7 +65,7 @@ export const claimProcessing = internalMutation({
 
 export const processUploadedPdf = action({
   args: { uploadJobId: v.id("uploadJobs") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const claim = await ctx.runMutation(internal.jobProcessing.claimProcessing, {
       uploadJobId: args.uploadJobId,
     });
@@ -89,7 +89,7 @@ export const processUploadedPdf = action({
 
       // ── Stage: parsed — the production parser (x-gap merge + clustering) ──
       await ctx.runMutation(api.identity.heartbeatUploadJob, { uploadJobId: args.uploadJobId });
-      await ctx.runMutation(internal.identity.updateUploadJobStage, {
+      await ctx.runMutation(api.identity.updateUploadJobStage, {
         uploadJobId: args.uploadJobId,
         stage: "parsed",
         expectedSeq: claim.stageSeq - 1,
@@ -123,8 +123,8 @@ export const processUploadedPdf = action({
         fullText: fullTextStorageId ? "" : parsed.fullText,
         parsedPages: parsed.pageCount,
         status: "ready",
-        pageDataStorageId: pageDataStorageId as string | undefined,
-        fullTextStorageId: fullTextStorageId as string | undefined,
+        pageDataStorageId,
+        fullTextStorageId,
       });
       await ctx.runMutation(api.identity.attachProjectToUploadJob, {
         uploadJobId: args.uploadJobId,
@@ -156,7 +156,7 @@ export const processUploadedPdf = action({
         remainingLangs: langCodes.length > 2 ? langCodes.slice(2) : undefined,
       });
 
-      await ctx.runMutation(internal.identity.updateUploadJobStage, {
+      await ctx.runMutation(api.identity.updateUploadJobStage, {
         uploadJobId: args.uploadJobId,
         stage: "translating",
         expectedSeq: claim.stageSeq - 1,

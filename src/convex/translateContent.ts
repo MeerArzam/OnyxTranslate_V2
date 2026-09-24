@@ -754,7 +754,7 @@ export const translateLanguage = action({
 
     const existingTranslation = await ctx.runQuery(api.queries.getTranslationsRaw, {
       projectId: args.projectId,
-    }).then((ts) => ts.find((t) => t.langCode === args.langCode));
+    }).then((ts) => ts.find((t: { langCode: string }) => t.langCode === args.langCode));
 
     if (!existingTranslation) {
       await ctx.runMutation(api.mutations.upsertTranslation, {

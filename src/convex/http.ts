@@ -152,7 +152,7 @@ export const uploadAndImport = httpAction(async (ctx, request) => {
     const clientId = String(form.get("clientId") ?? "");
     if (!clientId) return json({ ok: false, error: "Missing clientId" }, 400);
     const tabSessionId = String(form.get("tabSessionId") ?? "") || undefined;
-    const sessionId = tabSessionId;
+    const sessionId = tabSessionId ?? clientId;
 
     if (file.size > MAX_IMPORT_BYTES) {
       return json({ ok: false, error: `Import file exceeds ${MAX_IMPORT_BYTES} bytes (HTTP action request limit)` }, 413);

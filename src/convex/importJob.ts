@@ -55,7 +55,7 @@ export const uploadAndImportFromData = action({
     sessionId: v.string(),
     data: v.any(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const d = args.data as ImportPayload;
     const p = d.project;
 
@@ -111,8 +111,8 @@ export const uploadAndImportFromData = action({
             ? "all_translated"
             : p.status
           : "ready",
-      pageDataStorageId: pageDataStorageId as string | undefined,
-      fullTextStorageId: fullTextStorageId as string | undefined,
+      pageDataStorageId,
+      fullTextStorageId,
     });
 
     await ctx.runMutation(api.jobMutations.setProjectIdentity, {
