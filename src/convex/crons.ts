@@ -23,7 +23,7 @@ crons.hourly(
 // and re-kicks a missing dispatcher lease — the chain never dies silently.
 crons.interval(
   "adaptive watchdog",
-  { minutes: 3 },
+  { minutes: 5 },
   api.adaptiveWatchdog.watchdogTick,
   {},
 );
