@@ -120,6 +120,7 @@ export const resumeServerProject = action({
         resumeAt: promoted.governorResumeAt,
         reclaimed: promoted.reclaimed,
         promoted: promoted.promoted,
+        created: promoted.created,
       };
     }
 
@@ -135,6 +136,7 @@ export const resumeServerProject = action({
       resumed: true as const,
       reclaimed: promoted.reclaimed,
       promoted: promoted.promoted,
+      created: promoted.created,
       perLangDone: promoted.perLangDone,
     };
   },
@@ -154,9 +156,19 @@ export const resumePrepare = internalMutation({
       .collect();
     let promoted = 0;
     let reclaimed = 0;
+    let created = 0;
     for (const j of rows) {
       if (j.status === "retry_wait" && (j.nextRetryAt ?? 0) <= now) {
-        await ctx.db.patch(j._id, { status: "pending", claimToken: undefined });
+        await ctx.db.patch(j._id, {
+          status: "pending",
+          nextAttemptAt: undefined,
+          nextRetryAt: undefined,
+          claimToken: undefined,
+          leaseToken: undefined,
+          leaseOwner: undefined,
+          leaseExpiresAt: undefined,
+          updatedAt: now,
+        });
         promoted++;
       } else if (
         (j.status === "claimed" || j.status === "running") &&
@@ -165,14 +177,51 @@ export const resumePrepare = internalMutation({
         // Reclaim ONLY expired-heartbeat claims — never touch live leases.
         await ctx.db.patch(j._id, {
           status: "pending",
+          nextAttemptAt: now,
+          nextRetryAt: undefined,
           claimToken: undefined,
+          leaseToken: undefined,
+          leaseOwner: undefined,
+          leaseExpiresAt: undefined,
           reclaimCount: (j.reclaimCount ?? 0) + 1,
+          updatedAt: now,
         });
         reclaimed++;
       }
     }
 
-    // 2. Pacific-date-only governor reset: clear the pause ONLY when the
+    // 2. Re-derive missing work from persisted chunks. Completed chunks are
+    //    never re-enqueued, and the deterministic idempotency key prevents
+    //    duplicates when three resume actions race.
+    const chunks = await ctx.db
+      .query("chunks")
+      .withIndex("by_project_lang", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const byKey = new Map(rows.map((j) => [`${j.langCode}:${j.chunkIndex}`, j]));
+    for (const chunk of chunks) {
+      if (chunk.status === "done" || chunk.translatedText) continue;
+      const key = `${chunk.langCode}:${chunk.chunkIndex}`;
+      if (byKey.has(key)) continue;
+      await ctx.db.insert("translationJobs", {
+        projectId: args.projectId,
+        langCode: chunk.langCode,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: 1,
+        sourceText: chunk.sourceText,
+        status: "pending",
+        attempts: 0,
+        maxAttempts: TRANSLATION_CONFIG.maxAttempts,
+        nextAttemptAt: now,
+        idempotencyKey: `${args.projectId}:${chunk.langCode}:${chunk.chunkIndex}`,
+        pipelineVersion: project.translationMode ?? "adaptive_parallel",
+        translationIntelligenceMode: project.translationIntelligenceMode,
+        createdAt: now,
+        updatedAt: now,
+      });
+      created++;
+    }
+
+    // 3. Pacific-date-only governor reset: clear the pause ONLY when the
     //    Pacific date has changed since the counter was set (never bypass a
     //    same-day quota pause).
     let governorPaused = project.governorState === "daily_paused";
@@ -208,6 +257,7 @@ export const resumePrepare = internalMutation({
     return {
       reclaimed,
       promoted,
+      created,
       governorPaused,
       governorExpired,
       governorResumeAt: project.governorResumeAt ?? null,
@@ -216,10 +266,51 @@ export const resumePrepare = internalMutation({
   },
 });
 
+export const projectJobsSnapshot = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("translationJobs")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+  },
+});
+
+export const globalRateSnapshot = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("rateLimits").first();
+  },
+});
+
+export const resumeAfterGovernorReset = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "cancelled") return;
+    const rate = await ctx.db.query("rateLimits").first();
+    const now = Date.now();
+    if (rate && rate.requestDayPacific !== pacificDateKey(now)) {
+      await ctx.db.patch(rate._id, {
+        requestsToday: 0,
+        requestDayPacific: pacificDateKey(now),
+        lastUpdatedAt: now,
+      });
+    }
+    await ctx.db.patch(args.projectId, {
+      governorState: "running",
+      governorResumeAt: undefined,
+    });
+  },
+});
+
 export const markResuming = internalMutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.projectId, {
+      status: "translating",
+      translationMode: "adaptive_parallel",
+      governorState: "running",
       lastDispatcherAt: Date.now(),
       watchdogRecoveredAt: Date.now(),
       watchdogRecoveryCount: ((await ctx.db.get(args.projectId))?.watchdogRecoveryCount ?? 0) + 1,

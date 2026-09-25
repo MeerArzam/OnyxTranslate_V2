@@ -61,6 +61,7 @@ const onyxTables = {
     activeWorkerCount: v.optional(v.number()),
     consecutive429Count: v.optional(v.number()),
     lastDispatcherAt: v.optional(v.number()),
+    dispatcherLeaseUntil: v.optional(v.number()),
     lastSuccessfulActivityAt: v.optional(v.number()),
     pdfGenerationState: v.optional(v.string()),
     zipState: v.optional(v.string()),
@@ -217,10 +218,13 @@ const onyxTables = {
     sourceText: v.string(),
     sourceStartOffset: v.optional(v.number()),
     sourceEndOffset: v.optional(v.number()),
-    // pending | claimed | running | done | retry_wait | failed
+    // Salvaged status vocabulary: pending | claimed | running | done | retry_wait | failed.
+    // "paused_budget" is deliberately not added: the old architecture pauses the
+    // project governor and preserves retry_wait rows instead.
     status: v.string(),
     resultText: v.optional(v.string()),
     attempts: v.number(),
+    maxAttempts: v.optional(v.number()),
     reclaimCount: v.optional(v.number()),
     lastError: v.optional(v.string()),
     lastHttpStatus: v.optional(v.number()),
@@ -228,7 +232,18 @@ const onyxTables = {
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     heartbeatAt: v.optional(v.number()),
+    // Phase 3 durable lease aliases. Existing rows may lack them; all new
+    // claims populate both leaseToken and claimToken for compatibility.
+    leaseOwner: v.optional(v.string()),
+    leaseToken: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+    leaseVersion: v.optional(v.number()),
+    nextAttemptAt: v.optional(v.number()),
+    geminiKeyCursor: v.optional(v.number()),
     nextRetryAt: v.optional(v.number()),
+    scheduledTaskId: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
     claimToken: v.optional(v.string()),
     // pair merging: requestGroupId groups the 2 rows sharing one Gemini call
     requestGroupId: v.optional(v.string()),
@@ -252,7 +267,9 @@ const onyxTables = {
     .index("by_project", ["projectId"])
     .index("by_project_status", ["projectId", "status"])
     .index("by_project_lang_chunk", ["projectId", "langCode", "chunkIndex"])
-    .index("by_idempotencyKey", ["idempotencyKey"]),
+    .index("by_idempotencyKey", ["idempotencyKey"])
+    .index("by_nextAttempt", ["nextAttemptAt"])
+    .index("by_leaseExpiry", ["leaseExpiresAt"]),
 
   rateLimits: defineTable({
     projectId: v.id("projects"),

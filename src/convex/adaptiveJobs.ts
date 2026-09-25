@@ -95,9 +95,15 @@ export const enqueueTranslationJobs = internalMutation({
 // ════════════════════════════════════════════════════════════
 
 export const acquireRequestSlot = internalMutation({
-  args: { projectId: v.id("projects") },
+  args: {
+    projectId: v.id("projects"),
+    // Test-only override; production callers omit it and use the guarded
+    // salvaged 1,200/day constant.
+    dailyBudgetOverride: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const dailyBudget = args.dailyBudgetOverride ?? TRANSLATION_CONFIG.dailyRequestBudget;
     let row = await ctx.db
       .query("rateLimits")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -128,7 +134,7 @@ export const acquireRequestSlot = internalMutation({
       });
       row = { ...row, requestDayPacific: today, requestsToday: 0 };
     }
-    if (row.requestsToday >= TRANSLATION_CONFIG.dailyRequestBudget) {
+    if (row.requestsToday >= dailyBudget) {
       const resumeAt = Date.now() + msUntilNextPacificMidnight(now);
       await ctx.db.patch(args.projectId, {
         governorState: "daily_paused",
@@ -187,7 +193,12 @@ function newClaimToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Claim ONE pending job with a transactional lease. */
+/**
+ * Claim exactly one next chunk. The mutation is the transaction boundary:
+ * Convex retries a conflicting read/patch transaction, so two dispatchers
+ * cannot both receive the same row. Only the first unfinished chunk in a
+ * language is eligible, which is the durable sequential-language fence.
+ */
 export const claimJob = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -196,24 +207,45 @@ export const claimJob = internalMutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const job = await ctx.db
+    const projectJobs = await ctx.db
       .query("translationJobs")
-      .withIndex("by_project_status", (q) =>
-        q.eq("projectId", args.projectId).eq("status", "pending"),
-      )
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const inFlight = projectJobs.filter((j) => j.status === "claimed" || j.status === "running").length;
+    if (inFlight >= TRANSLATION_CONFIG.workerCount) {
+      return { claimed: false as const, reason: "worker_limit" as const };
+    }
+    const languageRows = await ctx.db
+      .query("translationJobs")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .filter((q) => q.eq(q.field("langCode"), args.langCode))
-      .first();
+      .collect();
+    languageRows.sort((a, b) => a.chunkIndex - b.chunkIndex);
+    const job = languageRows.find((candidate) => {
+      const due = candidate.status === "pending" &&
+        (candidate.nextAttemptAt === undefined || candidate.nextAttemptAt <= now);
+      const earlierFinished = languageRows
+        .filter((prior) => prior.chunkIndex < candidate.chunkIndex)
+        .every((prior) => prior.status === "done" || prior.status === "failed");
+      return due && earlierFinished;
+    });
     if (!job) return { claimed: false as const };
 
-    const claimToken = newClaimToken();
+    const leaseVersion = (job.leaseVersion ?? 0) + 1;
+    const claimToken = `lease-${leaseVersion}-${newClaimToken()}`;
     await ctx.db.patch(job._id, {
       status: "claimed",
       claimedAt: now,
       heartbeatAt: now,
+      leaseOwner: args.workerId,
+      leaseToken: claimToken,
+      leaseVersion,
+      leaseExpiresAt: now + TRANSLATION_CONFIG.workerAbortTimeoutMs + TRANSLATION_CONFIG.heartbeatTtlMs,
+      nextAttemptAt: undefined,
       claimToken,
       startedAt: now,
+      updatedAt: now,
     });
-    // Materialize the source text from the chunks table (single source).
     const chunk = await ctx.db
       .query("chunks")
       .withIndex("by_project_lang", (q) =>
@@ -223,14 +255,44 @@ export const claimJob = internalMutation({
           .eq("chunkIndex", job.chunkIndex),
       )
       .first();
-    if (chunk) await ctx.db.patch(job._id, { sourceText: chunk.sourceText });
+    if (chunk) await ctx.db.patch(job._id, { sourceText: chunk.sourceText, updatedAt: now });
     return {
       claimed: true as const,
       jobId: job._id,
       chunkIndex: job.chunkIndex,
       sourceText: chunk?.sourceText ?? "",
       claimToken,
+      leaseToken: claimToken,
     };
+  },
+});
+
+/** Pending languages are discovered server-side so startAdaptive needs no chain. */
+export const listIncompleteLanguages = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("translationJobs")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    return [...new Set(rows.filter((j) => j.status !== "done" && j.status !== "failed").map((j) => j.langCode))];
+  },
+});
+
+/** True when a dispatcher tick is useful, including delayed retry rows. */
+export const hasDispatchableWork = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("translationJobs")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    return rows.some((j) =>
+      j.status === "pending" ||
+      j.status === "claimed" ||
+      j.status === "running" ||
+      (j.status === "retry_wait" && (j.nextAttemptAt ?? j.nextRetryAt ?? 0) <= Date.now()),
+    );
   },
 });
 
@@ -333,6 +395,7 @@ export const flushJobResults = internalMutation({
         langCode: v.string(),
         chunkIndex: v.number(),
         translatedText: v.string(),
+        leaseToken: v.string(),
         model: v.optional(v.string()),
         usage: v.optional(v.any()),
         needsReview: v.optional(v.boolean()),
@@ -346,6 +409,21 @@ export const flushJobResults = internalMutation({
     const done: Array<{ projectId: Id<"projects">; langCode: string }> = [];
     for (const r of args.results) {
       if (writes >= TRANSLATION_CONFIG.maxDatabaseWritesPerAction) break;
+      const project = await ctx.db.get(r.projectId);
+      if (!project || project.status === "cancelled") {
+        continue;
+      }
+      const job = await ctx.db
+        .query("translationJobs")
+        .withIndex("by_project_lang_chunk", (q) =>
+          q.eq("projectId", r.projectId).eq("langCode", r.langCode).eq("chunkIndex", r.chunkIndex),
+        )
+        .first();
+      // Fence every result write. A late worker can never overwrite a newer
+      // claim, even if its Gemini response arrived after lease expiry.
+      if (!job || (job.leaseToken ?? job.claimToken) !== r.leaseToken || job.status === "done") {
+        continue;
+      }
       const chunk = await ctx.db
         .query("chunks")
         .withIndex("by_project_lang", (q) =>
@@ -374,17 +452,15 @@ export const flushJobResults = internalMutation({
       }
       writes++;
 
-      const job = await ctx.db
-        .query("translationJobs")
-        .withIndex("by_project_lang_chunk", (q) =>
-          q.eq("projectId", r.projectId).eq("langCode", r.langCode).eq("chunkIndex", r.chunkIndex),
-        )
-        .first();
-      if (job && job.status !== "done") {
+      if (job.status !== "done") {
         await ctx.db.patch(job._id, {
           status: "done",
           resultText: r.translatedText,
           completedAt: Date.now(),
+          leaseOwner: undefined,
+          leaseToken: undefined,
+          leaseExpiresAt: undefined,
+          updatedAt: Date.now(),
           needsReview: r.needsReview ?? false,
           reviewReason: r.reviewReason,
         });
@@ -453,6 +529,7 @@ export const flushJobResults = internalMutation({
 export const failJobWithBackoff = internalMutation({
   args: {
     jobId: v.id("translationJobs"),
+    leaseToken: v.string(),
     error: v.string(),
     httpStatus: v.optional(v.number()),
     is429: v.optional(v.boolean()),
@@ -460,6 +537,9 @@ export const failJobWithBackoff = internalMutation({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) return { ok: false as const };
+    if ((job.leaseToken ?? job.claimToken) !== args.leaseToken) {
+      return { ok: false as const, reason: "stale_claim" };
+    }
     const attempts = job.attempts + 1;
     const now = Date.now();
 
@@ -715,6 +795,7 @@ export const processClaimedJob = action({
       // no-keys RETRIES instead of throwing (dispatcher hardening law).
       await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
         jobId: args.jobId,
+        leaseToken: args.claimToken,
         error: "No Gemini API keys configured",
       });
       return { ok: false as const, reason: "no_keys" };
@@ -740,6 +821,7 @@ export const processClaimedJob = action({
     if (!slot.ok) {
       await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
         jobId: args.jobId,
+        leaseToken: args.claimToken,
         error: `rate_limited:${slot.reason}`,
         is429: slot.reason === "daily_budget_exhausted",
       });
@@ -751,6 +833,7 @@ export const processClaimedJob = action({
     if (!res.ok) {
       await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
         jobId: args.jobId,
+        leaseToken: args.claimToken,
         error: res.error,
         httpStatus: res.status,
         is429: res.status === 429,
@@ -769,7 +852,7 @@ export const processClaimedJob = action({
         const retry = await callGeminiAdaptive(keys, prompt.system, `${job.sourceText}\n\n${STRICT_RETRY_SUFFIX}`);
         if (!retry.ok) {
           await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
-            jobId: args.jobId, error: retry.error, httpStatus: retry.status, is429: retry.status === 429,
+            jobId: args.jobId, leaseToken: args.claimToken, error: retry.error, httpStatus: retry.status, is429: retry.status === 429,
           });
           return { ok: false as const, reason: retry.error };
         }
@@ -777,7 +860,7 @@ export const processClaimedJob = action({
         const outcome = evaluateContract(verdict2, 1);
         if (outcome.action === "needs_review" && !outcome.translation) {
           await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
-            jobId: args.jobId, error: outcome.reviewReason,
+            jobId: args.jobId, leaseToken: args.claimToken, error: outcome.reviewReason,
           });
           return { ok: false as const, reason: outcome.reviewReason };
         }
@@ -797,7 +880,7 @@ export const processClaimedJob = action({
       translationText = postProcessAdaptive(res.text, job.langCode, args.marketContext || "standard");
       if (looksLikeEnglishEcho(translationText, job.langCode)) {
         await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
-          jobId: args.jobId, error: "english_echo_gate",
+          jobId: args.jobId, leaseToken: args.claimToken, error: "english_echo_gate",
         });
         return { ok: false as const, reason: "english_echo_gate" };
       }
@@ -806,11 +889,22 @@ export const processClaimedJob = action({
         const qa = runQA(job.sourceText, translationText, job.langCode, []);
         if (qa.overall === "fail") {
           await ctx.runMutation(internal.adaptiveJobs.failJobWithBackoff, {
-            jobId: args.jobId, error: `qa_fail:${qa.score}`,
+            jobId: args.jobId, leaseToken: args.claimToken, error: `qa_fail:${qa.score}`,
           });
           return { ok: false as const, reason: "qa_fail" };
         }
       } catch { /* QA engine never blocks the pipeline */ }
+    }
+
+    // Cancellation is checked again after the external call and before the
+    // durable write. The lease-token check in flush is the second fence.
+    const afterCallProject = await ctx.runQuery(api.queries.getProjectRaw, { projectId: job.projectId });
+    const afterCallJob = await ctx.runQuery(internal.adaptiveJobs.getJobRaw, { jobId: args.jobId });
+    if (!afterCallProject || afterCallProject.status === "cancelled") {
+      return { ok: false as const, reason: "cancelled_after_call" };
+    }
+    if (!afterCallJob || (afterCallJob.leaseToken ?? afterCallJob.claimToken) !== args.claimToken) {
+      return { ok: false as const, reason: "stale_after_call" };
     }
 
     // Contract mode also post-processes light layers EXCEPT prose rewriting:
@@ -827,6 +921,7 @@ export const processClaimedJob = action({
           langCode: job.langCode,
           chunkIndex: job.chunkIndex,
           translatedText: finalText,
+          leaseToken: args.claimToken,
           model: res.model,
           usage: res.usage,
           needsReview,

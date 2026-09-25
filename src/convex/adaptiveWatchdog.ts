@@ -1,23 +1,9 @@
-// convex/adaptiveWatchdog.ts — PRIMARY driver, every 3 minutes (crons.ts).
-//
-// Reliability-pass law (history P0–P7 + overview), verbatim:
-//   "Cron every 3 min is the PRIMARY safety driver for BOTH modes: legacy
-//    projects revived via translateLanguage (the 14/92 incident gap — old
-//    watchdog skipped legacy rows), adaptive via dispatcher re-kick on
-//    expired lease or >10min no-activity; per-project try/catch (one broken
-//    project never stops others); watchdogLastRunAt/RecoveredAt/
-//    RecoveryCount/LastError persisted"
-//
-// Platform honesty: the cron is SKIPPED while the deployment is paused
-// (documented Convex behavior) — revival on wake is exactly why every job is
-// a durable row.
-
 import { v } from "convex/values";
-import { internalMutation, internalAction, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { TRANSLATION_CONFIG } from "./translationConfig";
+import { TRANSLATION_CONFIG, pacificDateKey } from "./translationConfig";
 
-/** Cron entry — iterates ALL projects, isolating failures per project. */
+/** The salvaged deployment law is a three-minute cron, not the requested 60 seconds. */
 export const watchdogTick = internalAction({
   args: {},
   handler: async (ctx): Promise<any> => {
@@ -26,16 +12,13 @@ export const watchdogTick = internalAction({
     let failed = 0;
     for (const project of projects) {
       try {
-        const r = await ctx.runAction(internal.adaptiveWatchdog.recoverProject, {
-          projectId: project._id,
-        });
-        if (r.recovered) recovered++;
-      } catch (e) {
-        // One broken project never stops others — persist the error.
+        const result = await ctx.runAction(internal.adaptiveWatchdog.recoverProject, { projectId: project._id });
+        if (result.recovered) recovered++;
+      } catch (error) {
         failed++;
         await ctx.runMutation(internal.adaptiveWatchdog.persistWatchdogError, {
           projectId: project._id,
-          error: e instanceof Error ? e.message : String(e),
+          error: error instanceof Error ? error.message : String(error),
         });
       }
     }
@@ -46,109 +29,91 @@ export const watchdogTick = internalAction({
 export const allProjectsRaw = internalQuery({
   args: {},
   handler: async (ctx) => {
-    // The watchdog needs the full project list each tick.
     const rows = [];
-    for await (const p of ctx.db.query("projects")) rows.push(p);
+    for await (const project of ctx.db.query("projects")) rows.push(project);
     return rows.map((p) => ({ _id: p._id, status: p.status, translationMode: p.translationMode }));
   },
 });
 
-/** Per-project recovery — the watchdog's core logic for ONE project. */
 export const recoverProject = internalAction({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args): Promise<any> => {
     const project = await ctx.runQuery(api.queries.getProjectRaw, { projectId: args.projectId });
-    if (!project) return { recovered: false as const };
+    if (!project || project.status === "cancelled") return { recovered: false as const, reason: "cancelled" as const };
 
-    // 1. Universal: promote retryable + reclaim expired claims (both modes).
-    await ctx.runMutation(internal.adaptiveJobs.promoteRetryableJobs, { projectId: args.projectId });
+    // Reclaim first. This is independent from the dispatcher lease and is safe
+    // after a deployment pause; it never touches a live lease.
     const reclaimed = await ctx.runMutation(internal.adaptiveJobs.reclaimExpiredClaims, {
       projectId: args.projectId,
     });
+    await ctx.runMutation(internal.adaptiveJobs.promoteRetryableJobs, { projectId: args.projectId });
 
-    // 2. Recover stuck PDF batches (adaptive batching law).
-    const batchRecovery = await ctx.runMutation(internal.adaptivePdf.recoverStuckBatches, {
+    const hasWork = await ctx.runQuery(internal.adaptiveJobs.hasDispatchableWork, {
       projectId: args.projectId,
     });
-
+    const dispatcherLive = (project.dispatcherLeaseUntil ?? 0) > Date.now();
     let revived = false;
 
-    // 3. ADAPTIVE projects: re-kick a missing/stale dispatcher lease.
-    if (project.translationMode === "adaptive_parallel" && project.status === "translating") {
-      const last = project.lastDispatcherAt ?? 0;
-      const stale =
-        Date.now() - last > TRANSLATION_CONFIG.staleProjectThresholdMs ||
-        Date.now() - (project.lastSuccessfulActivityAt ?? last) >
-          TRANSLATION_CONFIG.staleProjectThresholdMs;
-      if (stale) {
-        await ctx.scheduler.runAfter(0, api.adaptiveDispatcher.dispatcherTick, {
+    if (project.status === "translating" && hasWork && !dispatcherLive) {
+      // Watchdog is a dispatcher restarter, not merely a status-flipper.
+      await ctx.scheduler.runAfter(0, api.adaptiveDispatcher.dispatcherTick, {
+        projectId: args.projectId,
+      });
+      revived = true;
+    }
+
+    // A translating project with no pending/live rows is stalled. The safe
+    // resume mutation derives missing jobs from chunks/translations.
+    if (project.status === "translating" && !hasWork) {
+      const allJobs = await ctx.runQuery(internal.resumeServerProject.projectJobsSnapshot, {
+        projectId: args.projectId,
+      });
+      if (allJobs.length === 0) {
+        await ctx.runMutation(internal.adaptiveWatchdog.markStalled, {
           projectId: args.projectId,
         });
-        revived = true;
-      }
-      // Governor auto-resume arm (midnight Pacific passed → clear pause).
-      if (
-        project.governorState === "daily_paused" &&
-        project.governorResumeAt &&
-        Date.now() >= project.governorResumeAt
-      ) {
-        await ctx.runMutation(api.mutations.updateProject, {
-          projectId: args.projectId,
-          governorState: "running",
-          governorResumeAt: undefined,
-        });
-        await ctx.scheduler.runAfter(0, api.adaptiveDispatcher.dispatcherTick, {
+        await ctx.runAction(api.resumeServerProject.resumeServerProject, {
           projectId: args.projectId,
         });
         revived = true;
       }
     }
 
-    // 4. LEGACY projects (the 14/92 incident gap — old watchdog skipped
-    //    legacy rows): revive stalled in_progress languages via the legacy
-    //    chain entry point.
-    if (project.translationMode !== "adaptive_parallel" && project.status === "translating") {
-      const stalled = await ctx.runQuery(api.queries.getStalledLanguages, {
-        projectId: args.projectId,
-        sessionId: project.sessionId ?? "",
-      });
-      if (stalled.length > 0) {
-        const translationRow = await ctx.runQuery(api.queries.getTranslationsRaw, {
-          projectId: args.projectId,
-        });
-        const target = translationRow.find((t: { langCode: string }) => t.langCode === stalled[0]);
-        await ctx.scheduler.runAfter(0, api.translateContent.translateLanguage, {
-          projectId: args.projectId,
-          langCode: stalled[0],
-          nextLangCode: undefined,
-          remainingLangs: stalled.slice(1),
-        });
-        if (target) {
-          await ctx.runMutation(api.mutations.updateTranslation, {
-            translationId: target._id,
-            status: "in_progress",
-          });
-        }
+    // The old governor is Pacific-date based. Reset only after the date changes;
+    // a same-day 1,200-request pause is never bypassed.
+    if (project.governorState === "daily_paused" && project.governorResumeAt && Date.now() >= project.governorResumeAt) {
+      const rate = await ctx.runQuery(internal.resumeServerProject.globalRateSnapshot, {});
+      if (rate && rate.requestDayPacific !== pacificDateKey()) {
+        await ctx.runMutation(internal.resumeServerProject.resumeAfterGovernorReset, { projectId: args.projectId });
         revived = true;
       }
     }
 
-    if (revived || reclaimed.reclaimed > 0 || batchRecovery.recovered > 0) {
-      await ctx.runMutation(internal.adaptiveWatchdog.persistWatchdogRecovery, {
-        projectId: args.projectId,
-      });
+    if (revived || reclaimed.reclaimed > 0) {
+      await ctx.runMutation(internal.adaptiveWatchdog.persistWatchdogRecovery, { projectId: args.projectId });
     }
-    return { recovered: revived, reclaimed: reclaimed.reclaimed, batches: batchRecovery.recovered };
+    return { recovered: revived, reclaimed: reclaimed.reclaimed };
+  },
+});
+
+export const markStalled = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "cancelled") return;
+    await ctx.db.patch(args.projectId, { status: "stalled" });
   },
 });
 
 export const persistWatchdogRecovery = internalMutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "cancelled") return;
     await ctx.db.patch(args.projectId, {
       watchdogLastRunAt: Date.now(),
       watchdogRecoveredAt: Date.now(),
-      watchdogRecoveryCount: ((await ctx.db.get(args.projectId))?.watchdogRecoveryCount ?? 0) + 1,
+      watchdogRecoveryCount: (project.watchdogRecoveryCount ?? 0) + 1,
       watchdogLastError: undefined,
     });
   },
@@ -157,9 +122,14 @@ export const persistWatchdogRecovery = internalMutation({
 export const persistWatchdogError = internalMutation({
   args: { projectId: v.id("projects"), error: v.string() },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.status === "cancelled") return;
     await ctx.db.patch(args.projectId, {
       watchdogLastRunAt: Date.now(),
       watchdogLastError: args.error.slice(0, 1000),
     });
   },
 });
+
+// Kept as a named config reference for the old watchdog law and for probes.
+export const WATCHDOG_INTERVAL_MS = TRANSLATION_CONFIG.watchdogIntervalMs;

@@ -20,7 +20,11 @@ export const TRANSLATION_CONFIG = {
   /** Cron interval (crons.ts). */
   watchdogIntervalMs: 180_000, // 3 min
   /** Normal next-tick delay. */
-  dispatcherIntervalMs: 15_000, // 15 s
+  dispatcherIntervalMs: 15_000, // 15 s (salvaged law; not the requested 2 s)
+  /** Lease is deliberately longer than the 90 s Gemini abort timeout. */
+  workerAbortTimeoutMs: 90_000,
+  /** Dispatcher lease prevents overlapping watchdog re-kicks. */
+  dispatcherLeaseMs: 30_000,
   /** Per job before failed. */
   maxAttempts: 6,
   /** Exponential backoff base. */
