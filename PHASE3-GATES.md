@@ -1,6 +1,6 @@
 # Phase 3 adaptive freeze-proof pipeline
 
-Date: 2026-09-25
+Date: 2026-09-25 (blocker verification same day)
 Deployment: `charming-stork-436.convex.cloud`
 
 ## Salvaged-law conflicts
@@ -71,6 +71,58 @@ Therefore T1–T7 are **BLOCKED, not passed**. The deterministic backend action 
 ## Git/GitHub boundary
 
 The requested per-module commit/push verification is not independently available in this environment because Git/GitHub commands are managed/blocked by the platform. No push was attempted from this session. The deployment and source changes are left for the platform-managed synchronization boundary.
+
+## Blocker verification (2026-09-25, second pass)
+
+### BLOCKER 1 — security
+
+| Instruction | Status | Evidence |
+|---|---|---|
+| `git rm --cached .env.keys` + delete file | PARTIALLY DONE (environment-blocked) | Direct deletion of `.env.keys` was blocked by the sandbox (`Direct env and sensitive-file access is blocked`), and all Git/GitHub commands are platform-blocked. `.env.keys` still exists locally and must be deleted by the user. |
+| `.gitignore` covers `.env*` except `.env.example`, `_salvage/` | ALREADY CORRECT | `.gitignore` contains `.env*`, `!.env.example`, `_salvage/`, `node_modules/`, `dist/`, `src/convex/_generated/`. |
+| No hardcoded `fb_email_` key in `src/convex/auth/emailOtp.ts` | VERIFIED FIXED | `grep -R -n 'fb_email_' src` → `no fb_email_ matches in src/`. The file reads `"x-api-key": process.env.EMAIL_API_KEY ?? ""`. |
+| Commit + GitHub verification | BLOCKED | `git` commands are platform-blocked (`Git and GitHub commands are blocked; Vly manages version control.`). The user must delete `.env.keys`, and the platform-managed sync must be confirmed on github.com. |
+
+**User duties (cannot be done from the sandbox):**
+1. Delete `.env.keys` from the workspace and from GitHub history (the `DOTENV_PRIVATE_KEY_LOCAL` inside it is public — rotate it at dotenvx; old value is compromised forever).
+2. If `_salvage/` was ever pushed, untrack it (`git rm -r --cached _salvage/`) and purge it from history — the ignore rule only prevents future commits.
+3. Rotate the old `fb_email_...` email key (its value was public regardless of the code fix).
+
+### BLOCKER 2 — paused deployment
+
+The pause is confirmed and current. Verbatim, from this pass:
+
+```text
+$ bun convex run phase3TestGates:runPhase3Gates '{}'
+✖ Failed to run function "phase3TestGates:runPhase3Gates":
+Error: [Request ID: f562406a01323de9] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+error: "convex" exited with code 1
+
+$ curl -X POST https://charming-stork-436.convex.cloud/api/query ...
+{"status":"error","errorMessage":"[Request ID: 602881c19302e815] Server Error\nCannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.\n"}
+```
+
+The deployment's function-push path still authenticates (`bun convex dev --once` pushes fine) — only execution is paused. Alternatives were attempted and are blocked here:
+
+```text
+$ bunx convex deployment create local
+✖ Creating a deployment isn't supported with a deploy key (CONVEX_DEPLOY_KEY). Run npx convex login (or use a project key) and try again.
+```
+
+So the deployment is Freebuff-managed and paused; nothing can run until it is resumed. Per the honesty rule: while paused there is no scheduler, no watchdog, no dispatcher.
+
+### BLOCKER 3 — run the gates
+
+The deterministic gates are implemented and deployed (registered on the deployment per `bun convex function-spec`: `phase3TestGates.js:runPhase3Gates` plus fixtures). They cannot execute until Blocker 2 is cleared. Status remains **UNPROVEN**.
+
+**Exact runbook once the deployment is live** (one command; no keys consumed, no real Gemini calls — the gates use fixture rows and the production mutations):
+
+```text
+bun convex run phase3TestGates:runPhase3Gates '{}'
+```
+
+Expected: JSON with `evidence.T1`–`evidence.T7`, each `{ pass, ... }`, and a top-level `allPassed`. Paste the verbatim JSON into this file under "Gate evidence". T6 asserts the old-docs behavior (governor `daily_paused` with jobs preserved), not a `paused_budget` status, because the salvaged architecture wins that conflict.
 
 ## Honest ETA
 
