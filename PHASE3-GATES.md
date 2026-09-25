@@ -124,6 +124,26 @@ bun convex run phase3TestGates:runPhase3Gates '{}'
 
 Expected: JSON with `evidence.T1`–`evidence.T7`, each `{ pass, ... }`, and a top-level `allPassed`. Paste the verbatim JSON into this file under "Gate evidence". T6 asserts the old-docs behavior (governor `daily_paused` with jobs preserved), not a `paused_budget` status, because the salvaged architecture wins that conflict.
 
+### Deployment decision (2026-09-25, blockers round 2)
+
+The user declined creating a personal Convex account: **the project stays on the Freebuff-managed deployment `charming-stork-436`** (accepted trade-off from the start; compute pauses are the known risk of that choice, never hidden). The pause was re-checked after the round-2 instructions and is still active:
+
+```text
+$ bun convex run phase3TestGates:runPhase3Gates '{}'
+✖ Failed to run function "phase3TestGates:runPhase3Gates":
+Error: [Request ID: 9de3fd45ad215c68] Server Error
+Cannot run functions while this deployment is paused. Resume the deployment in the dashboard settings to allow functions to run.
+error: "convex" exited with code 1
+```
+
+Because the deployment is Freebuff-managed, resuming it is a Freebuff platform action, not a Convex-dashboard action. The single remaining blocker for the gates is the user resuming this deployment (or letting the platform's activity-based auto-resume fire), after which one command runs all gates:
+
+```text
+bun convex run phase3TestGates:runPhase3Gates '{}'
+```
+
+Git untracking (`.env.keys`, `_salvage/`) also remains user-side: the platform blocks both direct sensitive-file deletion and all Git/GitHub commands here. The dotenvx rotation warning stands — the leaked `DOTENV_PRIVATE_KEY_LOCAL` is compromised forever until rotated.
+
 ## Honest ETA
 
 The salvaged operating target is 10 RPM across the five-key quota pool, so 92 chunks have a 9.2-minute rate floor per language before latency and retries (realistically about 15–25 minutes). Twenty languages × 92 chunks is 1,840 calls: about 3h04m at the rate floor, and the 1,200/day budget can span more than one day. The target is never automatically increased.
